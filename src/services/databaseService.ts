@@ -174,27 +174,45 @@ export class DatabaseService {
    * Get an event by ID from the database
    */
   public async getEventById(id: string): Promise<DbResponse<Event>> {
-    // For now, we'll just fetch all events and find the one with matching ID
-    // You can implement a specific endpoint in your API for this
-    const eventsResponse = await this.getEvents();
-    
-    if (!eventsResponse.success) {
-      return eventsResponse;
-    }
-    
-    const event = eventsResponse.data?.find(e => e.id === id);
-    
-    if (!event) {
-      return {
-        success: false,
-        error: "Event not found"
+    if (!this.isConfigured()) {
+      return { 
+        success: false, 
+        error: "Database not configured" 
       };
     }
     
-    return {
-      success: true,
-      data: event
-    };
+    try {
+      // For now, we'll just fetch all events and find the one with matching ID
+      // You can implement a specific endpoint in your API for this
+      const eventsResponse = await this.getEvents();
+      
+      if (!eventsResponse.success) {
+        return {
+          success: false,
+          error: eventsResponse.error
+        };
+      }
+      
+      const event = eventsResponse.data?.find(e => e.id === id);
+      
+      if (!event) {
+        return {
+          success: false,
+          error: "Event not found"
+        };
+      }
+      
+      return {
+        success: true,
+        data: event
+      };
+    } catch (error) {
+      console.error("Failed to fetch event:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
   }
   
   /**
