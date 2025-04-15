@@ -1,12 +1,8 @@
 
-import { DbConfig, DbResponse, Event, EventCategory, User } from "@/types";
+import { DbConfig, DbResponse, Event, EventCategory } from "@/types";
 
 /**
- * This is a placeholder service for PostgreSQL database operations.
- * You will need to replace the implementation with actual PostgreSQL client code.
- * 
- * In a production environment, these operations would typically be performed 
- * through a secure backend API, not directly from the frontend.
+ * This service connects to the Express API that interfaces with PostgreSQL.
  */
 export class DatabaseService {
   private config: DbConfig | null = null;
@@ -21,9 +17,9 @@ export class DatabaseService {
       port: config.port,
       database: config.database,
       user: config.user,
+      apiUrl: config.apiUrl
       // Password hidden for security
     });
-    // In a real implementation, this would establish a connection pool
   }
   
   /**
@@ -34,7 +30,7 @@ export class DatabaseService {
   }
   
   /**
-   * Get all events from the database
+   * Get all events from the database via API
    */
   public async getEvents(): Promise<DbResponse<Event[]>> {
     if (!this.isConfigured()) {
@@ -45,14 +41,32 @@ export class DatabaseService {
     }
     
     try {
-      // This is where you would call your PostgreSQL client
-      // For now, returning mock data
-      console.log("Fetching events from database (mock)");
+      const response = await fetch(`${this.config?.apiUrl}/api/events`);
       
-      // Replace this with actual database query when you integrate PostgreSQL
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch events');
+      }
+      
+      const events = await response.json();
+      
+      // Map the API response to match our Event interface
+      const mappedEvents: Event[] = events.map((event: any) => ({
+        id: event.id.toString(),
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startDate: this.combineDateTime(event.event_date, event.event_time),
+        endDate: this.combineDateTime(event.event_date, event.event_time), // Using same for now
+        category: event.category as EventCategory,
+        organizer: event.organizer,
+        imageUrl: event.image_url,
+        attendees: event.attendees
+      }));
+      
       return {
         success: true,
-        data: [] // Will be populated from your PostgreSQL database
+        data: mappedEvents
       };
     } catch (error) {
       console.error("Failed to fetch events:", error);
@@ -64,7 +78,25 @@ export class DatabaseService {
   }
   
   /**
-   * Create a new event in the database
+   * Helper method to combine date and time into ISO string
+   */
+  private combineDateTime(date: string, time: string): string {
+    const [year, month, day] = date.split('-');
+    const [hours, minutes] = time.split(':');
+    
+    const dateObj = new Date(
+      parseInt(year), 
+      parseInt(month) - 1, 
+      parseInt(day), 
+      parseInt(hours), 
+      parseInt(minutes)
+    );
+    
+    return dateObj.toISOString();
+  }
+  
+  /**
+   * Create a new event in the database via API
    */
   public async createEvent(event: Omit<Event, "id">): Promise<DbResponse<Event>> {
     if (!this.isConfigured()) {
@@ -75,20 +107,59 @@ export class DatabaseService {
     }
     
     try {
-      // Generate a UUID (in a real implementation, this would be done by PostgreSQL)
-      const id = crypto.randomUUID();
+      // Extract date and time from ISO strings for the API
+      const startDateTime = new Date(event.startDate);
+      const endDateTime = new Date(event.endDate);
       
-      const newEvent: Event = {
-        ...event,
-        id
+      const startDate = startDateTime.toISOString().split('T')[0];
+      const startTime = `${startDateTime.getHours().toString().padStart(2, '0')}:${startDateTime.getMinutes().toString().padStart(2, '0')}:00`;
+      
+      // Prepare the event data for the API
+      const eventData = {
+        title: event.title,
+        description: event.description,
+        date: startDate,
+        time: startTime,
+        location: event.location,
+        organizer: event.organizer,
+        category: event.category,
+        imageUrl: event.imageUrl || 'https://placekitten.com/300/200', // Default image if none provided
+        attendees: event.attendees || 0
       };
       
-      console.log("Creating event in database (mock):", newEvent);
+      // Send the event to the API
+      const response = await fetch(`${this.config?.apiUrl}/api/events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      });
       
-      // Replace this with actual database insert when you integrate PostgreSQL
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create event');
+      }
+      
+      const createdEvent = await response.json();
+      
+      // Map the API response to match our Event interface
+      const mappedEvent: Event = {
+        id: createdEvent.id.toString(),
+        title: createdEvent.title,
+        description: createdEvent.description,
+        location: createdEvent.location,
+        startDate: this.combineDateTime(createdEvent.event_date, createdEvent.event_time),
+        endDate: this.combineDateTime(createdEvent.event_date, createdEvent.event_time), // Using same for now
+        category: createdEvent.category as EventCategory,
+        organizer: createdEvent.organizer,
+        imageUrl: createdEvent.image_url,
+        attendees: createdEvent.attendees
+      };
+      
       return {
         success: true,
-        data: newEvent
+        data: mappedEvent
       };
     } catch (error) {
       console.error("Failed to create event:", error);
@@ -103,112 +174,47 @@ export class DatabaseService {
    * Get an event by ID from the database
    */
   public async getEventById(id: string): Promise<DbResponse<Event>> {
-    if (!this.isConfigured()) {
-      return { 
-        success: false, 
-        error: "Database not configured" 
-      };
+    // For now, we'll just fetch all events and find the one with matching ID
+    // You can implement a specific endpoint in your API for this
+    const eventsResponse = await this.getEvents();
+    
+    if (!eventsResponse.success) {
+      return eventsResponse;
     }
     
-    try {
-      console.log(`Fetching event with ID ${id} from database (mock)`);
-      
-      // Replace this with actual database query when you integrate PostgreSQL
+    const event = eventsResponse.data?.find(e => e.id === id);
+    
+    if (!event) {
       return {
         success: false,
         error: "Event not found"
       };
-    } catch (error) {
-      console.error(`Failed to fetch event with ID ${id}:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
-    }
-  }
-  
-  /**
-   * Update an existing event in the database
-   */
-  public async updateEvent(event: Event): Promise<DbResponse<Event>> {
-    if (!this.isConfigured()) {
-      return { 
-        success: false, 
-        error: "Database not configured" 
-      };
     }
     
-    try {
-      console.log("Updating event in database (mock):", event);
-      
-      // Replace this with actual database update when you integrate PostgreSQL
-      return {
-        success: true,
-        data: event
-      };
-    } catch (error) {
-      console.error("Failed to update event:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
-    }
-  }
-  
-  /**
-   * Delete an event from the database
-   */
-  public async deleteEvent(id: string): Promise<DbResponse<boolean>> {
-    if (!this.isConfigured()) {
-      return { 
-        success: false, 
-        error: "Database not configured" 
-      };
-    }
-    
-    try {
-      console.log(`Deleting event with ID ${id} from database (mock)`);
-      
-      // Replace this with actual database delete when you integrate PostgreSQL
-      return {
-        success: true,
-        data: true
-      };
-    } catch (error) {
-      console.error(`Failed to delete event with ID ${id}:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
-    }
+    return {
+      success: true,
+      data: event
+    };
   }
   
   /**
    * Get events by category from the database
    */
   public async getEventsByCategory(category: EventCategory): Promise<DbResponse<Event[]>> {
-    if (!this.isConfigured()) {
-      return { 
-        success: false, 
-        error: "Database not configured" 
-      };
+    // For now, we'll just fetch all events and filter by category
+    // You can implement a specific endpoint in your API for this
+    const eventsResponse = await this.getEvents();
+    
+    if (!eventsResponse.success) {
+      return eventsResponse;
     }
     
-    try {
-      console.log(`Fetching events with category ${category} from database (mock)`);
-      
-      // Replace this with actual database query when you integrate PostgreSQL
-      return {
-        success: true,
-        data: []
-      };
-    } catch (error) {
-      console.error(`Failed to fetch events with category ${category}:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
-    }
+    const filteredEvents = eventsResponse.data?.filter(e => e.category === category);
+    
+    return {
+      success: true,
+      data: filteredEvents || []
+    };
   }
 }
 

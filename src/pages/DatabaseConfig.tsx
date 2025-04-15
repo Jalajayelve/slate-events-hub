@@ -13,9 +13,10 @@ const DatabaseConfig = () => {
   const [dbConfig, setDbConfig] = useState<DbConfig>({
     host: "localhost",
     port: 5432,
-    database: "events_db",
+    database: "Event_management",
     user: "postgres",
-    password: ""
+    password: "",
+    apiUrl: "http://localhost:8081"
   });
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   
@@ -62,8 +63,26 @@ const DatabaseConfig = () => {
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <label htmlFor="apiUrl" className="text-sm font-medium">
+                    API URL
+                  </label>
+                  <Input
+                    id="apiUrl"
+                    name="apiUrl"
+                    value={dbConfig.apiUrl}
+                    onChange={handleChange}
+                    placeholder="http://localhost:8081"
+                    className="apple-input"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The URL of your Express API server
+                  </p>
+                </div>
+              
+                <div className="space-y-2">
                   <label htmlFor="host" className="text-sm font-medium">
-                    Host
+                    Database Host
                   </label>
                   <Input
                     id="host"
@@ -78,7 +97,7 @@ const DatabaseConfig = () => {
                 
                 <div className="space-y-2">
                   <label htmlFor="port" className="text-sm font-medium">
-                    Port
+                    Database Port
                   </label>
                   <Input
                     id="port"
@@ -101,7 +120,7 @@ const DatabaseConfig = () => {
                     name="database"
                     value={dbConfig.database}
                     onChange={handleChange}
-                    placeholder="events_db"
+                    placeholder="Event_management"
                     className="apple-input"
                     required
                   />
@@ -144,7 +163,7 @@ const DatabaseConfig = () => {
                   type="submit" 
                   className="apple-button w-full"
                 >
-                  Save Configuration
+                  Connect to Database
                 </Button>
               </CardFooter>
             </form>
@@ -152,9 +171,9 @@ const DatabaseConfig = () => {
           
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              This configuration will be used to connect to your PostgreSQL database.
+              This configuration will connect to your PostgreSQL database through your Express API.
               <br />
-              You'll need to replace the implementation in the database service with your actual PostgreSQL client code.
+              Make sure your Express server is running at the specified API URL.
             </p>
           </div>
         </div>
@@ -165,9 +184,8 @@ const DatabaseConfig = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Connection Configured</AlertDialogTitle>
             <AlertDialogDescription>
-              Your database configuration has been saved. Please note that this is a frontend
-              placeholder. In a production environment, you would typically connect to your database
-              through a secure backend API, not directly from the frontend.
+              Your database configuration has been saved. The application will now use your Express API
+              to connect to PostgreSQL. You can now create and view events with your database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

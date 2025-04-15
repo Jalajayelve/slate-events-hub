@@ -37,6 +37,7 @@ export interface DbConfig {
   database: string;
   user: string;
   password: string;
+  apiUrl: string; // API URL for the Express server
 }
 
 export interface DbResponse<T> {
