@@ -29,3 +29,18 @@ export interface User {
   role: 'student' | 'admin';
   savedEvents?: string[]; // Event IDs
 }
+
+// Database interfaces for PostgreSQL integration
+export interface DbConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+}
+
+export interface DbResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}

@@ -11,6 +11,7 @@ import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import Calendar from "./pages/Calendar";
 import Categories from "./pages/Categories";
+import DatabaseConfig from "./pages/DatabaseConfig";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/events/:id" element={<EventDetail />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/categories" element={<Categories />} />
+              <Route path="/db-config" element={<DatabaseConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
