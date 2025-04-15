@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Navbar } from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
@@ -32,9 +31,26 @@ const DatabaseConfig = () => {
     e.preventDefault();
     
     try {
-      dbService.setConfig(dbConfig);
-      setShowSuccessDialog(true);
-      toast.success("Database configuration saved successfully");
+      if (!dbConfig.apiUrl) {
+        toast.error("API URL is required");
+        return;
+      }
+      
+      fetch(`${dbConfig.apiUrl}/api/events`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`API not reachable: ${response.status}`);
+          }
+          
+          console.log("API connection successful");
+          dbService.setConfig(dbConfig);
+          setShowSuccessDialog(true);
+          toast.success("Database configuration saved successfully");
+        })
+        .catch(err => {
+          console.error("API connection failed:", err);
+          toast.error(`Failed to connect to API: ${err.message}`);
+        });
     } catch (error) {
       console.error("Failed to save database configuration:", error);
       toast.error("Failed to save database configuration");

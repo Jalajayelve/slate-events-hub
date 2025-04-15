@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Calendar, Clock, MapPin, Info, User } from "lucide-react";
 import { EventCategory } from "@/types";
+import { toast } from "sonner";
 
 interface CreateEventDialogProps {
   isOpen: boolean;
@@ -44,33 +44,46 @@ export function CreateEventDialog({ isOpen, onClose, onCreateEvent }: CreateEven
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Combine date and time for start and end
-    const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`).toISOString();
-    const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`).toISOString();
+    if (!formData.title || !formData.description || !formData.location || 
+        !formData.startDate || !formData.startTime || !formData.category || !formData.organizer) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
     
-    const eventData = {
-      ...formData,
-      startDate: startDateTime,
-      endDate: endDateTime,
-      id: crypto.randomUUID()
-    };
-    
-    onCreateEvent(eventData);
-    onClose();
-    
-    // Reset form
-    setFormData({
-      title: "",
-      description: "",
-      location: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      category: "" as EventCategory,
-      organizer: "",
-      imageUrl: ""
-    });
+    try {
+      // Combine date and time for start and end
+      const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`).toISOString();
+      const endDateTime = new Date(`${formData.endDate || formData.startDate}T${formData.endTime || formData.startTime}`).toISOString();
+      
+      const eventData = {
+        ...formData,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        attendees: 0,  // Initialize with 0 attendees
+        imageUrl: formData.imageUrl || 'https://placekitten.com/300/200' // Default image if none provided
+      };
+      
+      console.log("Creating event with data:", eventData);
+      onCreateEvent(eventData);
+      onClose();
+      
+      // Reset form
+      setFormData({
+        title: "",
+        description: "",
+        location: "",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+        category: "" as EventCategory,
+        organizer: "",
+        imageUrl: ""
+      });
+    } catch (error) {
+      console.error("Error creating event:", error);
+      toast.error("Failed to create event. Please try again.");
+    }
   };
 
   return (

@@ -49,10 +49,11 @@ export class DatabaseService {
       }
       
       const events = await response.json();
+      console.log("Received events from API:", events);
       
       // Map the API response to match our Event interface
       const mappedEvents: Event[] = events.map((event: any) => ({
-        id: event.id.toString(),
+        id: event.id ? event.id.toString() : crypto.randomUUID(),
         title: event.title,
         description: event.description,
         location: event.location,
@@ -61,7 +62,7 @@ export class DatabaseService {
         category: event.category as EventCategory,
         organizer: event.organizer,
         imageUrl: event.image_url,
-        attendees: event.attendees
+        attendees: event.attendees || 0
       }));
       
       return {
@@ -81,18 +82,27 @@ export class DatabaseService {
    * Helper method to combine date and time into ISO string
    */
   private combineDateTime(date: string, time: string): string {
-    const [year, month, day] = date.split('-');
-    const [hours, minutes] = time.split(':');
+    if (!date || !time) {
+      return new Date().toISOString(); // Default to current time if missing
+    }
     
-    const dateObj = new Date(
-      parseInt(year), 
-      parseInt(month) - 1, 
-      parseInt(day), 
-      parseInt(hours), 
-      parseInt(minutes)
-    );
-    
-    return dateObj.toISOString();
+    try {
+      const [year, month, day] = date.split('-');
+      const [hours, minutes] = time.split(':');
+      
+      const dateObj = new Date(
+        parseInt(year), 
+        parseInt(month) - 1, 
+        parseInt(day), 
+        parseInt(hours), 
+        parseInt(minutes)
+      );
+      
+      return dateObj.toISOString();
+    } catch (error) {
+      console.error("Error combining date and time:", error);
+      return new Date().toISOString(); // Fallback to current time
+    }
   }
   
   /**
@@ -109,12 +119,16 @@ export class DatabaseService {
     try {
       // Extract date and time from ISO strings for the API
       const startDateTime = new Date(event.startDate);
-      const endDateTime = new Date(event.endDate);
       
+      // Format date as YYYY-MM-DD
       const startDate = startDateTime.toISOString().split('T')[0];
-      const startTime = `${startDateTime.getHours().toString().padStart(2, '0')}:${startDateTime.getMinutes().toString().padStart(2, '0')}:00`;
       
-      // Prepare the event data for the API
+      // Format time as HH:MM:00
+      const hours = startDateTime.getHours().toString().padStart(2, '0');
+      const minutes = startDateTime.getMinutes().toString().padStart(2, '0');
+      const startTime = `${hours}:${minutes}:00`;
+      
+      // Prepare the event data for the API in the format expected by Express
       const eventData = {
         title: event.title,
         description: event.description,
@@ -127,6 +141,9 @@ export class DatabaseService {
         attendees: event.attendees || 0
       };
       
+      console.log("Sending event data to API:", eventData);
+      console.log("API URL:", `${this.config?.apiUrl}/api/events`);
+      
       // Send the event to the API
       const response = await fetch(`${this.config?.apiUrl}/api/events`, {
         method: 'POST',
@@ -137,15 +154,23 @@ export class DatabaseService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create event');
+        const errorText = await response.text();
+        console.error("API error response:", errorText);
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to create event');
+        } catch (e) {
+          throw new Error(`Failed to create event: ${response.status} ${response.statusText}`);
+        }
       }
       
       const createdEvent = await response.json();
+      console.log("Event created successfully:", createdEvent);
       
       // Map the API response to match our Event interface
       const mappedEvent: Event = {
-        id: createdEvent.id.toString(),
+        id: createdEvent.id ? createdEvent.id.toString() : crypto.randomUUID(),
         title: createdEvent.title,
         description: createdEvent.description,
         location: createdEvent.location,
@@ -153,8 +178,8 @@ export class DatabaseService {
         endDate: this.combineDateTime(createdEvent.event_date, createdEvent.event_time), // Using same for now
         category: createdEvent.category as EventCategory,
         organizer: createdEvent.organizer,
-        imageUrl: createdEvent.image_url,
-        attendees: createdEvent.attendees
+        imageUrl: createdEvent.image_url || event.imageUrl,
+        attendees: createdEvent.attendees || 0
       };
       
       return {
